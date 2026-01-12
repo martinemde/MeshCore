@@ -77,6 +77,11 @@ class UITask : public AbstractUITask {
   UIScreen* msg_preview;
   UIScreen* curr;
 
+#ifdef M5STACK_CARDPUTER_ADV
+  UIScreen* text_input;
+  UIScreen* contact_select;
+#endif
+
   void userLedHandler();
 
   // Button action handlers
@@ -84,8 +89,6 @@ class UITask : public AbstractUITask {
   char handleLongPress(char c);
   char handleDoubleClick(char c);
   char handleTripleClick(char c);
-
-  void setCurrScreen(UIScreen* c);
 
 public:
 
@@ -101,6 +104,11 @@ public:
   int  getMsgCount() const { return _msgcount; }
   bool hasDisplay() const { return _display != NULL; }
   bool isButtonPressed() const;
+  void setCurrScreen(UIScreen* c);
+
+#ifdef M5STACK_CARDPUTER_ADV
+  void startComposingMessage();
+#endif
 
   bool isBuzzerQuiet() { 
 #ifdef PIN_BUZZER
