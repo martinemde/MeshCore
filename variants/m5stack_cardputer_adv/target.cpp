@@ -3,7 +3,7 @@
 
 M5CardputerADVBoard board;
 
-static SPIClass spi;
+static SPIClass spi(FSPI); // Radio uses SPI2; M5Cardputer display uses SPI3.
 
 RADIO_CLASS radio = new Module(P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY, spi);
 
@@ -30,8 +30,7 @@ bool radio_init() {
   Serial.printf("LoRa pins: NSS=%d DIO1=%d RST=%d BUSY=%d\n", P_LORA_NSS, P_LORA_DIO_1, P_LORA_RESET, P_LORA_BUSY);
   Serial.printf("SPI pins: SCLK=%d MISO=%d MOSI=%d\n", P_LORA_SCLK, P_LORA_MISO, P_LORA_MOSI);
 
-  // GPIO 46 (LoRa Cap power) is already enabled in board.begin()
-  Serial.println("LoRa Cap power already enabled (GPIO 46)");
+  // The LoRa Cap antenna switch is enabled in board.begin().
 
   Serial.println("Initializing clocks...");
   fallback_clock.begin();

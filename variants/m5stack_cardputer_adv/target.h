@@ -9,7 +9,7 @@
 #include <helpers/sensors/EnvironmentSensorManager.h>
 #include <helpers/ui/MomentaryButton.h>
 #ifdef DISPLAY_CLASS
-#include <helpers/ui/ST7789Display.h>
+#include "CardputerDisplay.h"
 #endif
 
 extern M5CardputerADVBoard board;

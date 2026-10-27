@@ -816,7 +816,7 @@ public:
 
 class TextInputScreen : public UIScreen {
   UITask* _task;
-  char input_buffer[256];
+  char input_buffer[MAX_TEXT_LEN + 1];
   int cursor_pos;
   int scroll_offset;
   bool shift_active;
@@ -840,7 +840,7 @@ public:
 
   int render(DisplayDriver& display) override {
     display.setTextSize(1);
-    display.setColor(DisplayDriver::GREEN);
+    display.setColor(UIColor::title_txt);
     display.setCursor(0, 0);
 
     if (recipient) {
@@ -852,22 +852,22 @@ public:
     }
 
     // Draw horizontal line
-    display.setColor(DisplayDriver::LIGHT);
+    display.setColor(UIColor::primary_txt);
     display.drawRect(0, 11, display.width(), 1);
 
     // Display input text with word wrap
     display.setCursor(0, 14);
-    display.setColor(DisplayDriver::YELLOW);
+    display.setColor(UIColor::primary_txt);
     int text_len = strlen(input_buffer);
     if (text_len > 0) {
       display.printWordWrap(input_buffer, display.width());
     } else {
-      display.setColor(DisplayDriver::DARK);
+      display.setColor(UIColor::secondary_txt);
       display.print("Type message...");
     }
 
     // Show cursor indicator and help text at bottom
-    display.setColor(DisplayDriver::BLUE);
+    display.setColor(UIColor::corp_blue);
     display.setCursor(0, display.height() - 10);
     char status[40];
     if (shift_active) {
@@ -886,7 +886,7 @@ public:
       auto& status = M5Cardputer.Keyboard.keysState();
 
       // Handle special keys
-      if (status.del || status.word[0] == '\b') {
+      if (status.del || (!status.word.empty() && status.word[0] == '\b')) {
         if (cursor_pos > 0) {
           // Delete character
           cursor_pos--;
@@ -911,12 +911,11 @@ public:
 
           int result = the_mesh.sendMessage(*recipient, timestamp, 0, input_buffer, expected_ack, est_timeout);
 
-          if (result >= 0) {
-            _task->showAlert("Message sent!", 2000);
-          } else {
+          if (result == MSG_SEND_FAILED) {
             _task->showAlert("Send failed", 2000);
+            return;
           }
-
+          _task->showAlert("Message queued", 2000);
           _task->gotoHomeScreen();
           return;
         } else if (recipient == NULL) {
@@ -970,7 +969,7 @@ public:
 class ContactSelectScreen : public UIScreen {
   UITask* _task;
   TextInputScreen* _text_input;
-  ContactInfo contacts[10];
+  ContactInfo contacts[4];
   int num_contacts;
   int selected_idx;
   int page_offset;
@@ -991,7 +990,7 @@ public:
     // Load contacts for current page
     num_contacts = 0;
     int start_idx = page_offset;
-    int end_idx = min(start_idx + 10, total_contacts);
+    int end_idx = min(start_idx + 4, total_contacts);
 
     for (int i = start_idx; i < end_idx; i++) {
       ContactInfo contact;
@@ -1008,31 +1007,31 @@ public:
 
   int render(DisplayDriver& display) override {
     display.setTextSize(1);
-    display.setColor(DisplayDriver::GREEN);
+    display.setColor(UIColor::title_txt);
     display.setCursor(0, 0);
 
     char header[40];
     if (total_contacts > 0) {
-      int current_page = (page_offset / 10) + 1;
-      int total_pages = (total_contacts + 9) / 10; // Ceiling division
+      int current_page = (page_offset / 4) + 1;
+      int total_pages = (total_contacts + 3) / 4; // Ceiling division
       snprintf(header, sizeof(header), "Contacts: %d/%d (p%d)", page_offset + selected_idx + 1, total_contacts, current_page);
     } else {
       snprintf(header, sizeof(header), "Select Recipient");
     }
     display.print(header);
 
-    display.setColor(DisplayDriver::LIGHT);
+    display.setColor(UIColor::primary_txt);
     display.drawRect(0, 11, display.width(), 1);
 
     int y = 14;
     int display_count = min(num_contacts, 4); // Show max 4 contacts on screen
     for (int i = 0; i < display_count; i++) {
       if (i == selected_idx) {
-        display.setColor(DisplayDriver::YELLOW);
+        display.setColor(UIColor::primary_txt);
         display.setCursor(0, y);
         display.print(">");
       } else {
-        display.setColor(DisplayDriver::LIGHT);
+        display.setColor(UIColor::primary_txt);
       }
 
       display.setCursor(8, y);
@@ -1043,14 +1042,14 @@ public:
     }
 
     if (num_contacts == 0) {
-      display.setColor(DisplayDriver::RED);
+      display.setColor(UIColor::warning_txt);
       display.setCursor(0, 20);
       display.print("No contacts found");
       display.setCursor(0, 32);
       display.print("Add contacts via app");
     } else if (total_contacts > 4) {
       // Show scroll indicator
-      display.setColor(DisplayDriver::BLUE);
+      display.setColor(UIColor::corp_blue);
       display.setCursor(0, display.height() - 10);
       display.print("Use arrows to scroll");
     }
@@ -1069,7 +1068,7 @@ public:
         selected_idx--;
       } else if (page_offset > 0) {
         // Scroll to previous page
-        page_offset -= 10;
+        page_offset -= 4;
         if (page_offset < 0) page_offset = 0;
         loadPage();
         selected_idx = min(3, num_contacts - 1); // Position at bottom of screen
@@ -1083,7 +1082,7 @@ public:
         selected_idx++;
       } else if (page_offset + num_contacts < total_contacts) {
         // Load next page
-        page_offset += 10;
+        page_offset += 4;
         loadPage();
         selected_idx = 0; // Position at top of screen
       }
@@ -1357,7 +1356,12 @@ void UITask::loop() {
   }
 #elif defined(PIN_USER_BTN)
   int ev = user_btn.check();
-  #ifdef UI_HAS_NAV_INPUT
+  #if defined(M5STACK_CARDPUTER_ADV)
+  // BOOT hold belongs to DualMesh; do not enter CLI rescue before its 3s hook.
+  if (ev == BUTTON_EVENT_CLICK) {
+    c = checkDisplayOn(KEY_NEXT);
+  }
+  #elif defined(UI_HAS_NAV_INPUT)
   if (ev == BUTTON_EVENT_CLICK) {
     c = checkDisplayOn(KEY_ENTER);
   } else if (ev == BUTTON_EVENT_LONG_PRESS) {

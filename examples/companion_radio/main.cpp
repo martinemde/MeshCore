@@ -1,4 +1,5 @@
 #include <Arduino.h>   // needed for PlatformIO
+#include "dualmesh_ota.h" // DualMesh: return-to-launcher hook
 #include <Mesh.h>
 #include "MyMesh.h"
 
@@ -119,7 +120,15 @@ MyMesh the_mesh(radio_driver, fast_rng, rtc_clock, tables, store);
 /* END GLOBAL OBJECTS */
 
 void halt() {
+#ifdef M5STACK_CARDPUTER_ADV
+  // Keep the launcher reachable even if radio initialization failed in setup().
+  while (1) {
+    dualmesh::ReturnHook::poll();
+    delay(10);
+  }
+#else
   while (1) ;
+#endif
 }
 
 /* WIFI RECONNECT TRACKERS */
@@ -178,7 +187,7 @@ void setup() {
   store.begin();
   the_mesh.begin();
 #elif defined(ESP32)
-  SPIFFS.begin(true);
+  SPIFFS.begin(true, "/spiffs", 10, "mc_data"); // DualMesh: keep MeshCore data out of Meshtastic storage
   store.begin();
   the_mesh.begin();
 #else
@@ -290,6 +299,7 @@ void setup() {
 }
 
 void loop() {
+  dualmesh::ReturnHook::poll(); // DualMesh: hold BOOT 3s to return to the app picker
   the_mesh.loop();
   interface_manager.loop();
   sensors.loop();

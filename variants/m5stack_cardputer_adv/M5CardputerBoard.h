@@ -11,12 +11,7 @@ public:
   }
 
   void begin() {
-    // Step 1: Enable power to I/O expander on LoRa Cap (GPIO 46)
-    pinMode(46, OUTPUT);
-    digitalWrite(46, HIGH);
-    delay(100);  // Give I/O expander time to power up
-
-    // Step 2: Initialize main I2C (SDA=2, SCL=1) before M5Cardputer keyboard init
+    // Initialize the external I2C bus before M5Cardputer starts its internal bus.
     ESP32Board::begin();
 
     // Step 3: Initialize M5Cardputer hardware with keyboard enabled
@@ -30,19 +25,20 @@ public:
     delay(100);
     M5Cardputer.Keyboard.begin();
 
-    // Step 4: Configure PI4IOE I/O expander at 0x43 to enable LoRa module power
-    // The I/O expander is on the internal I2C bus (SDA=8, SCL=9)
-    M5.In_I2C.writeRegister8(0x43, 0x03, 0x00, 100000);  // all pins output
-    delay(10);
-    M5.In_I2C.writeRegister8(0x43, 0x01, 0xFF, 100000);  // all outputs HIGH
-    delay(200);  // Give LoRa module time to power up
-
-    Serial.println("LoRa Cap I/O expander (PI4IOE at 0x43 on SDA=8,SCL=9) configured");
+    // Cap LoRa-1262 antenna switch: PI4IOE P0 HIGH on internal I2C (8/9).
+    bool cap_ok = M5.In_I2C.writeRegister8(0x43, 0x03, 0x01, 100000);
+    cap_ok = cap_ok && M5.In_I2C.writeRegister8(0x43, 0x07, 0x00, 100000);
+    cap_ok = cap_ok && M5.In_I2C.writeRegister8(0x43, 0x05, 0x01, 100000);
+    Serial.println(cap_ok ? "LoRa Cap antenna switch enabled" : "ERROR: LoRa Cap antenna switch init failed");
 
     Serial.println("M5Stack Cardputer-Adv initialized");
     Serial.print("Battery voltage: ");
     Serial.print(getBattMilliVolts());
     Serial.println(" mV");
+  }
+
+  bool startOTAUpdate(const char*, char[]) override {
+    return false; // DualMesh owns both OTA slots.
   }
 
   uint16_t getBattMilliVolts() override {
