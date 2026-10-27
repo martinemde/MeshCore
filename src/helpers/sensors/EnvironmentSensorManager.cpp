@@ -763,7 +763,11 @@ static bool gps_wait_for_nmea(uint32_t timeout_ms) {
 
 void EnvironmentSensorManager::initBasicGPS() {
 
+#ifdef M5STACK_CARDPUTER_ADV
+  Serial1.setPins(PIN_GPS_RX, PIN_GPS_TX); // HardwareSerial takes MCU RX, then TX.
+#else
   Serial1.setPins(PIN_GPS_TX, PIN_GPS_RX);
+#endif
 
   #ifdef GPS_BAUD_RATE
   Serial1.begin(GPS_BAUD_RATE);
